@@ -3,10 +3,41 @@
 {% block title %}{{ p.title }} — {% endblock %}
 {% block content %}
 {{ card(p, full=True) }}
-{% if g.user and g.user.username == p.author %}
-<form method="post" action="{{ url_for('delete_poem', poem_id=p.id) }}" onsubmit="return confirm('Удалить это стихотворение?')">
-  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-  <button class="linklike danger">Удалить стихотворение</button>
-</form>
+{% if g.user and g.user.id == p.user_id %}
+<div class="owner-actions">
+  <a href="{{ url_for('edit_poem', poem_id=p.id) }}">Редактировать</a>
+  <form method="post" action="{{ url_for('delete_poem', poem_id=p.id) }}" onsubmit="return confirm('Удалить это стихотворение вместе с комментариями?')">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="linklike danger">Удалить</button>
+  </form>
+</div>
 {% endif %}
+
+<section id="comments" class="comments">
+  <h2>Комментарии{% if comments %} ({{ comments|length }}){% endif %}</h2>
+  {% for c in comments %}
+  <div class="comment">
+    <p class="meta"><a href="{{ url_for('user', username=c.author) }}">{{ c.author }}</a> <time>{{ c.date }}</time></p>
+    <p class="comment-body">{{ c.body }}</p>
+    {% if g.user and (g.user.id == c.user_id or g.user.id == p.user_id) %}
+    <form method="post" action="{{ url_for('delete_comment', comment_id=c.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button class="linklike danger small">Удалить</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="empty-small">Комментариев пока нет.</p>
+  {% endfor %}
+
+  {% if g.user %}
+  <form method="post" action="{{ url_for('add_comment', poem_id=p.id) }}" class="form comment-form">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Твой комментарий <textarea name="body" maxlength="1000" required rows="3"></textarea></label>
+    <button class="btn">Отправить</button>
+  </form>
+  {% else %}
+  <p class="hint">Чтобы комментировать, <a href="{{ url_for('login') }}">войди</a> или <a href="{{ url_for('register') }}">зарегистрируйся</a>.</p>
+  {% endif %}
+</section>
 {% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Уведомления — {% endblock %}
+{% block content %}
+<h1 class="page-title">Уведомления</h1>
+{% for n in items %}
+<a class="notif{{ ' unread' if n.unread }}" href="{{ n.link }}">
+  <span>{{ n.text }}</span>
+  <time>{{ n.date }}</time>
+</a>
+{% else %}
+<p class="empty">Пока ничего нового. Когда кто-то отреагирует на твои стихи, прокомментирует их или подпишется, это появится здесь.</p>
+{% endfor %}
+{% endblock %}

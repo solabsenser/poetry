@@ -1,8 +1,24 @@
 {% extends "base.html" %}
 {% from "_card.html" import card, pager %}
-{% block title %}{{ author }} — {% endblock %}
+{% block title %}{{ profile.username }} — {% endblock %}
 {% block content %}
-<h1 class="page-title">{{ author }}</h1>
+<section class="profile">
+  <h1 class="page-title">{{ profile.username }}</h1>
+  {% if profile.bio %}<p class="bio">{{ profile.bio }}</p>{% endif %}
+  <p class="stats">
+    <span>Стихов: {{ profile.poems }}</span>
+    <span>Читателей: {{ profile.followers }}</span>
+    <span>Читает: {{ profile.following }}</span>
+  </p>
+  {% if profile.is_me %}
+    <a href="{{ url_for('settings') }}">Редактировать профиль</a>
+  {% elif g.user %}
+    <form method="post" action="{{ url_for('follow', username=profile.username) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button class="btn{{ ' btn-quiet' if profile.is_following }}">{{ 'Отписаться' if profile.is_following else 'Читать' }}</button>
+    </form>
+  {% endif %}
+</section>
 {% for p in poems %}{{ card(p) }}
 {% else %}
 <p class="empty">Пока ни одного стихотворения.</p>

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} — {% endblock %}
+{% block content %}
+<h1 class="page-title">{{ heading }}</h1>
+<form method="post" class="form form-wide">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <label>Название <input name="title" value="{{ title }}" maxlength="100" required autofocus></label>
+  <label>Текст <textarea name="body" class="poem-input" maxlength="5000" required>{{ body }}</textarea></label>
+  <label>Теги <input name="tags" value="{{ tags }}" placeholder="любовь, осень, верлибр"></label>
+  <p class="hint">До 5 тегов через запятую или пробел.</p>
+  <div class="form-row">
+    <button class="btn">{{ submit }}</button>
+    {% if cancel %}<a href="{{ cancel }}">Отмена</a>{% endif %}
+  </div>
+</form>
+{% endblock %}

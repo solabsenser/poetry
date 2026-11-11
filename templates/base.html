@@ -16,6 +16,7 @@
     <nav>
       {% if g.user %}
         <a href="{{ url_for('new_poem') }}">Написать</a>
+        <a href="{{ url_for('notifications') }}">Уведомления<span id="notif-badge" class="badge" hidden></span></a>
         <a href="{{ url_for('user', username=g.user.username) }}">{{ g.user.username }}</a>
         <form method="post" action="{{ url_for('logout') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -27,6 +28,14 @@
       {% endif %}
     </nav>
   </header>
+  <form class="searchbar" action="{{ url_for('search') }}" method="get" role="search">
+    <input type="search" name="q" value="{{ request.args.get('q', '') if request.endpoint == 'search' else '' }}" placeholder="Поиск по стихам, авторам и #тегам" aria-label="Поиск" maxlength="100">
+  </form>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <p class="notice{{ ' error' if category == 'error' }}" role="status">{{ message }}</p>
+    {% endfor %}
+  {% endwith %}
   <main>{% block content %}{% endblock %}</main>
 </div>
 <script src="{{ url_for('static', filename='app.js') }}"></script>

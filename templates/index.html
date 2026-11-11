@@ -1,9 +1,17 @@
 {% extends "base.html" %}
 {% from "_card.html" import card, pager %}
+{% block title %}{% if heading %}{{ heading }} — {% endif %}{% endblock %}
 {% block content %}
+{% if heading %}<h1 class="page-title">{{ heading }}</h1>{% endif %}
+{% if tabs %}
+<nav class="tabs" aria-label="Лента">
+  <a href="{{ url_for('index') }}"{% if feed == 'all' %} aria-current="page"{% endif %}>Все</a>
+  <a href="{{ url_for('index', feed='following') }}"{% if feed == 'following' %} aria-current="page"{% endif %}>Подписки</a>
+</nav>
+{% endif %}
 {% for p in poems %}{{ card(p) }}
 {% else %}
-<p class="empty">Здесь пока тихо. <a href="{{ url_for('new_poem') }}">Опубликуй первое стихотворение.</a></p>
+<p class="empty">{% if empty %}{{ empty }}{% else %}Здесь пока тихо. <a href="{{ url_for('new_poem') }}">Опубликуй первое стихотворение.</a>{% endif %}</p>
 {% endfor %}
 {{ pager(page, has_next) }}
 {% endblock %}

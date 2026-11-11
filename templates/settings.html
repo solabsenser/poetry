@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Профиль — {% endblock %}
+{% block content %}
+<h1 class="page-title">Профиль</h1>
+<form method="post" class="form">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <label>О себе <textarea name="bio" maxlength="300" rows="4">{{ bio }}</textarea></label>
+  <p class="hint">До 300 символов. Это увидят все на твоей странице.</p>
+  <div class="form-row">
+    <button class="btn">Сохранить</button>
+    <a href="{{ url_for('user', username=g.user.username) }}">Отмена</a>
+  </div>
+</form>
+{% endblock %}

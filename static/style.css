@@ -72,7 +72,7 @@ a { color: var(--accent); }
   color: var(--ink); background: #fff; border: 1px solid #aeb8c6; border-radius: 4px;
 }
 .poem-input { font-family: var(--serif) !important; font-size: 1.15rem !important; line-height: 1.7; min-height: 18rem; resize: vertical; }
-.new-wide { max-width: none; }
+
 .btn {
   justify-self: start; padding: .7rem 1.4rem; font: inherit; font-weight: 500;
   color: #fff; background: var(--accent); border: 0; border-radius: 4px; cursor: pointer;
@@ -87,3 +87,67 @@ a { color: var(--accent); }
   .sheet { padding: 0 1.1rem 3rem; box-shadow: none; }
   .poem-body { font-size: 1.1rem; }
 }
+
+/* ---------- поиск, вкладки, теги ---------- */
+.searchbar { padding: 1rem 0 0; }
+.searchbar input {
+  width: 100%; padding: .6rem .8rem; font: inherit; color: var(--ink);
+  background: #fff; border: 1px solid #aeb8c6; border-radius: 4px;
+}
+.tabs { display: flex; gap: 1.5rem; margin-top: 1.25rem; border-bottom: 1px solid var(--line); }
+.tabs a {
+  padding: .5rem 0; color: var(--muted); text-decoration: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 500; }
+.tags { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin: 1rem 0 0; font-size: .95rem; }
+.tags a { text-decoration: none; }
+.tags a:hover { text-decoration: underline; }
+
+/* ---------- сообщения и бейдж ---------- */
+.notice { margin: 1rem 0 0; padding: .7rem .9rem; background: var(--accent-soft); border-left: 3px solid var(--accent); }
+.notice.error { color: var(--danger); background: #f7e8e8; border-left-color: var(--danger); }
+.badge {
+  display: inline-block; min-width: 1.25rem; margin-left: .35rem; padding: 0 .35rem;
+  font-size: .8rem; line-height: 1.25rem; text-align: center; color: #fff;
+  background: var(--accent); border-radius: 999px;
+}
+.badge[hidden] { display: none; }
+
+/* ---------- действия под стихом ---------- */
+.actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .75rem 1rem; }
+.comments-link { font-size: .95rem; }
+.owner-actions { display: flex; gap: 1.25rem; align-items: baseline; padding-top: 1.25rem; }
+.owner-actions form { margin: 0; }
+.owner-actions .linklike.danger { margin-top: 0; }
+.linklike.small { font-size: .85rem; margin-top: 0; }
+
+/* ---------- комментарии ---------- */
+.comments { padding-top: 2rem; }
+.comments h2 { font-family: var(--serif); font-weight: 600; font-size: 1.3rem; margin: 0 0 1rem; }
+.comment { padding: .9rem 0; border-top: 1px solid var(--line); }
+.comment .meta { margin: 0 0 .35rem; }
+.comment-body { margin: 0 0 .35rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment form { margin: 0; }
+.empty-small { color: var(--muted); margin: 0 0 1rem; }
+.comment-form { margin-top: 1.5rem; }
+.form textarea { resize: vertical; }
+
+/* ---------- профиль и уведомления ---------- */
+.profile { padding-bottom: 1.5rem; border-bottom: 1px solid var(--line); }
+.profile .page-title { margin-bottom: .5rem; }
+.bio { margin: 0 0 .75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.stats { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin: 0 0 1rem; color: var(--muted); font-size: .95rem; }
+.profile form { margin: 0; }
+.btn-quiet { color: var(--ink); background: transparent; border: 1px solid #aeb8c6; }
+.btn-quiet:hover { background: var(--accent-soft); }
+.form-wide { max-width: none; }
+.form-row { display: flex; gap: 1.25rem; align-items: center; }
+.notif {
+  display: flex; justify-content: space-between; gap: 1rem; padding: .9rem .75rem;
+  color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.notif:hover { background: #f0f3f7; }
+.notif.unread { background: var(--accent-soft); }
+.notif time { flex: none; color: var(--muted); font-size: .9rem; }

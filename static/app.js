@@ -17,6 +17,7 @@ document.addEventListener("click", async (e) => {
       body: JSON.stringify({ kind: btn.dataset.kind }),
     });
     if (r.status === 401) { location.href = "/login"; return; }
+    if (r.status === 429) { alert("Слишком часто. Подожди минуту."); return; }
     if (!r.ok) throw new Error(r.status);
     const d = await r.json();
     card.querySelectorAll(".react").forEach((b) => {
@@ -32,3 +33,19 @@ document.addEventListener("click", async (e) => {
     btn.disabled = false;
   }
 });
+
+// Счётчик непрочитанных уведомлений подгружается после показа страницы,
+// чтобы не замедлять её открытие.
+(async () => {
+  const badge = document.getElementById("notif-badge");
+  if (!badge) return;
+  try {
+    const r = await fetch("/notifications/count", { cache: "no-store" });
+    if (!r.ok) return;
+    const { count } = await r.json();
+    if (count > 0) {
+      badge.textContent = count > 99 ? "99+" : count;
+      badge.hidden = false;
+    }
+  } catch (err) { /* не критично */ }
+})();
