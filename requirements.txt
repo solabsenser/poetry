@@ -1,4 +1,5 @@
 flask
-libsql
+requests
 python-dotenv
 gunicorn
+ 
