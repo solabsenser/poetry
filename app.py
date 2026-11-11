@@ -10,7 +10,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import get_conn, init_db
 
-SITE_NAME = "Строфа"  # поменяй на своё название
+SITE_NAME = "Немножко о стихах"  # поменяй на своё название
 REACTIONS = {"heart": "❤️", "fire": "🔥", "tear": "😢", "spark": "✨"}
 PER_PAGE = 15
 PREVIEW_LINES = 12
