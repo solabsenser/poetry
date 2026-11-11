@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% from "_card.html" import card, pager %}
+{% block content %}
+{% for p in poems %}{{ card(p) }}
+{% else %}
+<p class="empty">Здесь пока тихо. <a href="{{ url_for('new_poem') }}">Опубликуй первое стихотворение.</a></p>
+{% endfor %}
+{{ pager(page, has_next) }}
+{% endblock %}

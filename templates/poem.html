@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% block title %}{{ p.title }} — {% endblock %}
+{% block content %}
+{{ card(p, full=True) }}
+{% if g.user and g.user.username == p.author %}
+<form method="post" action="{{ url_for('delete_poem', poem_id=p.id) }}" onsubmit="return confirm('Удалить это стихотворение?')">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <button class="linklike danger">Удалить стихотворение</button>
+</form>
+{% endif %}
+{% endblock %}

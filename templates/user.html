@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% from "_card.html" import card, pager %}
+{% block title %}{{ author }} — {% endblock %}
+{% block content %}
+<h1 class="page-title">{{ author }}</h1>
+{% for p in poems %}{{ card(p) }}
+{% else %}
+<p class="empty">Пока ни одного стихотворения.</p>
+{% endfor %}
+{{ pager(page, has_next) }}
+{% endblock %}

@@ -1,0 +1,22 @@
+{% macro card(p, full=False) %}
+<article class="poem" data-id="{{ p.id }}">
+  <h2><a href="{{ url_for('poem', poem_id=p.id) }}">{{ p.title }}</a></h2>
+  <div class="poem-body">{{ p.body if full else p.preview }}</div>
+  {% if not full and p.truncated %}<a class="more" href="{{ url_for('poem', poem_id=p.id) }}">Читать целиком</a>{% endif %}
+  <p class="meta"><a href="{{ url_for('user', username=p.author) }}">{{ p.author }}</a> <time>{{ p.date }}</time></p>
+  <div class="reactions">
+    {% for key, emoji in REACTIONS.items() %}
+    <button type="button" class="react{{ ' on' if p.mine == key }}" data-kind="{{ key }}" aria-pressed="{{ 'true' if p.mine == key else 'false' }}"><span>{{ emoji }}</span><b>{{ p.counts[key] or '' }}</b></button>
+    {% endfor %}
+  </div>
+</article>
+{% endmacro %}
+
+{% macro pager(page, has_next) %}
+{% if page > 1 or has_next %}
+<nav class="pager">
+  {% if page > 1 %}<a href="?page={{ page - 1 }}">Новее</a>{% endif %}
+  {% if has_next %}<a href="?page={{ page + 1 }}">Старше</a>{% endif %}
+</nav>
+{% endif %}
+{% endmacro %}

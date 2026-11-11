@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Регистрация — {% endblock %}
+{% block content %}
+<h1 class="page-title">Регистрация</h1>
+<form method="post" class="form">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <label>Имя <input name="username" value="{{ username }}" required autofocus autocomplete="username" minlength="3" maxlength="30"></label>
+  <label>Пароль <input name="password" type="password" required autocomplete="new-password" minlength="8"></label>
+  <p class="hint">Пароль не короче 8 символов.</p>
+  <button class="btn">Создать аккаунт</button>
+  <p class="hint">Уже есть аккаунт? <a href="{{ url_for('login') }}">Войти</a></p>
+</form>
+{% endblock %}
