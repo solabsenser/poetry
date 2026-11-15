@@ -36,7 +36,8 @@
             {{ avatar(g.user.username, g.user.id, g.user.av, 44) }}
             <span><b>{{ g.user.username }}</b><small>Открыть профиль</small></span>
           </a>
-          <a class="menu-item" role="menuitem" href="{{ url_for('settings') }}">{{ icon('edit') }}Редактировать профиль</a>
+          <a class="menu-item" role="menuitem" href="{{ url_for('edit_profile') }}">{{ icon('edit') }}Редактировать профиль</a>
+          <a class="menu-item" role="menuitem" href="{{ url_for('settings') }}">{{ icon('sliders') }}Настройки</a>
           <form method="post" action="{{ url_for('logout') }}">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
             <button class="menu-item" role="menuitem">{{ icon('logout') }}Выйти</button>

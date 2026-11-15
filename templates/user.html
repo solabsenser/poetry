@@ -17,7 +17,7 @@
     <div><dt>Реакций</dt><dd>{{ profile.likes }}</dd></div>
   </dl>
   {% if profile.is_me %}
-    <a class="btn btn-quiet" href="{{ url_for('settings') }}">{{ icon('edit') }}Редактировать профиль</a>
+    <a class="btn btn-quiet" href="{{ url_for('edit_profile') }}">{{ icon('edit') }}Редактировать профиль</a>
   {% elif g.user %}
     {{ follow_button(profile.username, profile.is_following) }}
   {% endif %}

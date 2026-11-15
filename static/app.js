@@ -16,17 +16,37 @@
   }
 
   // ---------- тёмная и светлая тема ----------
+  const root = document.documentElement;
+  const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+  const stored = () => { try { return localStorage.getItem("theme"); } catch (e) { return null; } };
   function syncThemeColor() {
     const meta = $("#theme-color");
-    if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    if (meta) meta.content = getComputedStyle(root).getPropertyValue("--bg").trim();
+  }
+  function applyTheme(choice) { // choice: light | dark | system
+    try {
+      if (choice === "system") localStorage.removeItem("theme");
+      else localStorage.setItem("theme", choice);
+    } catch (e) { /* не критично */ }
+    root.dataset.theme = choice === "system" ? (systemDark.matches ? "dark" : "light") : choice;
+    syncThemeColor();
+    markThemeChoice();
+  }
+  function markThemeChoice() {
+    const current = stored() || "system";
+    document.querySelectorAll("[data-theme-choice]").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.dataset.themeChoice === current));
+    });
   }
   syncThemeColor();
+  markThemeChoice();
   $("#theme-toggle")?.addEventListener("click", () => {
-    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem("theme", next); } catch (e) { /* не критично */ }
-    syncThemeColor();
+    applyTheme(root.dataset.theme === "dark" ? "light" : "dark");
   });
+  document.querySelectorAll("[data-theme-choice]").forEach((b) => {
+    b.addEventListener("click", () => applyTheme(b.dataset.themeChoice));
+  });
+  systemDark.addEventListener?.("change", () => { if (!stored()) applyTheme("system"); });
 
   // ---------- меню аватара ----------
   const menuBtn = $("#menu-btn");

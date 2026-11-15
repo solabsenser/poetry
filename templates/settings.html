@@ -1,25 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Профиль — {% endblock %}
+{% block title %}Настройки — {% endblock %}
 {% block content %}
-<h1 class="page-title">Редактировать профиль</h1>
+<h1 class="page-title">Настройки</h1>
+<p class="page-sub">Аккаунт <b>{{ g.user.username }}</b>. Это видишь только ты.</p>
 
 <section class="panel">
-  <h2 class="section-title">О себе</h2>
-  <form method="post" action="{{ url_for('settings') }}" class="form form-wide">
-    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
-    <label>Пара слов о тебе <textarea name="bio" maxlength="300" rows="4" data-count="bio-count">{{ bio }}</textarea></label>
-    <p class="hint counter" id="bio-count"></p>
-    <p class="hint">Это увидят все на твоей странице.</p>
-    <div class="form-row">
-      <button class="btn">Сохранить</button>
-      <a href="{{ url_for('user', username=g.user.username) }}">Отмена</a>
-    </div>
-  </form>
+  <h2 class="section-title">Внешний вид</h2>
+  <div class="seg" role="group" aria-label="Тема оформления">
+    <button type="button" data-theme-choice="light">Светлая</button>
+    <button type="button" data-theme-choice="dark">Тёмная</button>
+    <button type="button" data-theme-choice="system">Как в системе</button>
+  </div>
+  <p class="hint">Выбор запоминается на этом устройстве.</p>
 </section>
 
 <section class="panel" id="password">
-  <h2 class="section-title">Смена пароля</h2>
+  <h2 class="section-title">Безопасность</h2>
   <form method="post" action="{{ url_for('change_password') }}" class="form form-wide">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     {% if pw_error %}<p class="error" role="alert">{{ pw_error }}</p>{% endif %}

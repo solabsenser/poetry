@@ -621,23 +621,33 @@ def follow(username):
     return redirect(safe_back(url_for("user", username=row[1])))
 
 
-def render_settings(bio=None, error=None, pw_error=None, status=200):
+def render_profile_edit(bio=None, error=None):
     if bio is None:
         row = q1("SELECT bio FROM users WHERE id = ?", (g.user["id"],))
         bio = (row[0] if row else "") or ""
-    return render_template("settings.html", bio=bio, error=error, pw_error=pw_error), status
+    return render_template("profile_edit.html", bio=bio, error=error)
 
 
-@app.route("/settings", methods=["GET", "POST"])
+def render_settings(pw_error=None, status=200):
+    return render_template("settings.html", pw_error=pw_error), status
+
+
+@app.route("/profile/edit", methods=["GET", "POST"])
 @login_required
-def settings():
+def edit_profile():
     if request.method == "POST":
         bio = request.form.get("bio", "").replace("\r\n", "\n").strip()
         if len(bio) > 300:
-            return render_settings(bio=bio, error="О себе: не больше 300 символов.")
+            return render_profile_edit(bio=bio, error="О себе: не больше 300 символов.")
         db().execute("UPDATE users SET bio = ? WHERE id = ?", (bio, g.user["id"]))
         flash("Профиль сохранён.")
         return redirect(url_for("user", username=g.user["username"]))
+    return render_profile_edit()
+
+
+@app.route("/settings")
+@login_required
+def settings():
     return render_settings()
 
 
