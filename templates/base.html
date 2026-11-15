@@ -66,8 +66,9 @@
     <a class="tab" href="{{ url_for('following') }}"{% if ep == 'following' %} aria-current="page"{% endif %}>{{ icon('users') }}<span>Подписки</span></a>
     <a class="tab tab-fab" href="{{ url_for('new_poem') }}"{% if ep == 'new_poem' %} aria-current="page"{% endif %}><span class="fab">{{ icon('plus') }}</span><span>Написать</span></a>
     <a class="tab" href="{{ url_for('notifications') }}"{% if ep == 'notifications' %} aria-current="page"{% endif %}><span class="tab-icon">{{ icon('bell') }}<i class="badge" id="notif-badge" hidden></i></span><span>Новое</span></a>
-    <a class="tab tab-me" href="{{ url_for('user', username=g.user.username) }}"{% if ep == 'user' and request.view_args.username|lower == g.user.username|lower %} aria-current="page"{% endif %}>{{ avatar(g.user.username, g.user.id, g.user.av, 26) }}<span>Профиль</span></a>
+    <a class="tab" href="{{ url_for('explore') }}"{% if ep == 'explore' %} aria-current="page"{% endif %}>{{ icon('compass') }}<span>Обзор</span></a>
     {% else %}
+    <a class="tab" href="{{ url_for('explore') }}"{% if ep == 'explore' %} aria-current="page"{% endif %}>{{ icon('compass') }}<span>Обзор</span></a>
     <a class="tab" href="{{ url_for('login') }}"{% if ep in ('login', 'register') %} aria-current="page"{% endif %}>{{ icon('user') }}<span>Войти</span></a>
     {% endif %}
   </div>

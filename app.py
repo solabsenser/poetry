@@ -19,6 +19,7 @@ PER_PAGE = 12
 PREVIEW_LINES = 12
 MAX_TAGS = 5
 USERNAME_RE = re.compile(r"^\w{3,30}$")
+POPULAR_ORDER = "(SELECT COUNT(*) FROM reactions r WHERE r.poem_id = p.id) DESC, p.id DESC"
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
@@ -274,6 +275,16 @@ def trending_tags():
         "SELECT tag, COUNT(*) AS n FROM poem_tags GROUP BY tag ORDER BY n DESC, tag LIMIT 14")]
 
 
+def top_authors():
+    rows = q(
+        "SELECT * FROM (SELECT u.id, u.username, u.avatar_v, u.bio, "
+        "(SELECT COUNT(*) FROM follows f WHERE f.followed_id = u.id) AS fc, "
+        "(SELECT COUNT(*) FROM poems p WHERE p.user_id = u.id) AS pc FROM users u) "
+        "WHERE pc > 0 ORDER BY fc DESC, pc DESC, id DESC LIMIT 12")
+    return [{"id": r[0], "username": r[1], "av": r[2] or 0, "bio": r[3] or "",
+             "followers": r[4], "poems": r[5]} for r in rows]
+
+
 # ---------- ленты ----------
 
 @app.route("/health")
@@ -300,7 +311,21 @@ def following():
     return feed("feed_page.html", poems=poems, page=page, has_next=has_next,
                 heading="Подписки", sub="Стихи авторов, которых ты читаешь.",
                 empty="Тут пока пусто. Подпишись на авторов, и их стихи появятся здесь.",
-                empty_cta={"url": url_for("index"), "label": "Открыть общую ленту"})
+                empty_cta={"url": url_for("explore"), "label": "Найти авторов"})
+
+
+@app.route("/explore")
+def explore():
+    tags = cached("tags", 600, trending_tags)
+    authors = cached("authors", 300, top_authors)
+    followed = set()
+    if g.user:
+        followed = {r[0] for r in q("SELECT followed_id FROM follows WHERE follower_id = ?",
+                                    (g.user["id"],))}
+        authors = [a for a in authors if a["id"] != g.user["id"]]
+    authors = [dict(a, followed=a["id"] in followed) for a in authors[:6]]
+    popular, _ = load_poems(per_page=5, order=POPULAR_ORDER)
+    return render_template("explore.html", tags=tags, authors=authors, poems=popular)
 
 
 @app.route("/tag/<tag>")
@@ -571,24 +596,54 @@ def follow(username):
             if n:
                 stmts.append(n)
             db().run_many(stmts)
+        _cache.pop("authors", None)
     return redirect(safe_back(url_for("user", username=row[1])))
+
+
+def render_settings(bio=None, error=None, pw_error=None, status=200):
+    if bio is None:
+        row = q1("SELECT bio FROM users WHERE id = ?", (g.user["id"],))
+        bio = (row[0] if row else "") or ""
+    return render_template("settings.html", bio=bio, error=error, pw_error=pw_error), status
 
 
 @app.route("/settings", methods=["GET", "POST"])
 @login_required
 def settings():
-    error = None
     if request.method == "POST":
         bio = request.form.get("bio", "").replace("\r\n", "\n").strip()
         if len(bio) > 300:
-            error = "О себе: не больше 300 символов."
-        else:
-            db().execute("UPDATE users SET bio = ? WHERE id = ?", (bio, g.user["id"]))
-            flash("Профиль сохранён.")
-            return redirect(url_for("user", username=g.user["username"]))
-        return render_template("settings.html", error=error, bio=bio)
-    row = q1("SELECT bio FROM users WHERE id = ?", (g.user["id"],))
-    return render_template("settings.html", error=None, bio=(row[0] if row else "") or "")
+            return render_settings(bio=bio, error="О себе: не больше 300 символов.")
+        db().execute("UPDATE users SET bio = ? WHERE id = ?", (bio, g.user["id"]))
+        flash("Профиль сохранён.")
+        return redirect(url_for("user", username=g.user["username"]))
+    return render_settings()
+
+
+@app.post("/settings/password")
+@login_required
+def change_password():
+    current = request.form.get("current", "")
+    new = request.form.get("new", "")
+    repeat = request.form.get("repeat", "")
+    key = ("pwfail", g.user["id"])
+    if too_many(key, 5, 900):
+        return render_settings(pw_error="Слишком много неудачных попыток. Подожди 15 минут.",
+                               status=429)
+    row = q1("SELECT password_hash FROM users WHERE id = ?", (g.user["id"],))
+    if not row or not check_password_hash(row[0], current):
+        hit(key)
+        return render_settings(pw_error="Текущий пароль указан неверно.")
+    if not 8 <= len(new) <= 128:
+        return render_settings(pw_error="Новый пароль: от 8 до 128 символов.")
+    if new != repeat:
+        return render_settings(pw_error="Новые пароли не совпадают.")
+    if new == current:
+        return render_settings(pw_error="Новый пароль совпадает со старым.")
+    db().execute("UPDATE users SET password_hash = ? WHERE id = ?",
+                 (generate_password_hash(new), g.user["id"]))
+    flash("Пароль изменён.")
+    return redirect(url_for("settings"))
 
 
 @app.route("/avatar/<int:uid>/<int:v>.jpg")

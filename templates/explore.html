@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card, avatar, follow_button with context %}
+{% block title %}Обзор — {% endblock %}
+{% block content %}
+<h1 class="page-title">Обзор</h1>
+{% include "_search.html" %}
+
+{% if tags %}
+<h2 class="section-title">Темы</h2>
+<div class="chips wrap">
+  {% for t, n in tags %}<a class="chip" href="{{ url_for('tag', tag=t) }}">#{{ t }} <small>{{ n }}</small></a>{% endfor %}
+</div>
+{% endif %}
+
+{% if authors %}
+<h2 class="section-title">Кого читать</h2>
+<div class="people">
+  {% for a in authors %}
+  <div class="person">
+    <a class="person-main" href="{{ url_for('user', username=a.username) }}">
+      {{ avatar(a.username, a.id, a.av, 48) }}
+      <span><b>{{ a.username }}</b><small>{{ a.poems }} стих., {{ a.followers }} чит.</small></span>
+    </a>
+    {% if g.user %}{{ follow_button(a.username, a.followed, small=True) }}{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2 class="section-title">Популярное</h2>
+{% for p in poems %}{{ card(p) }}
+{% else %}
+<div class="empty-state"><div class="empty-mark" aria-hidden="true">🌱</div><p>Здесь появятся самые любимые стихи, как только люди начнут ставить реакции.</p></div>
+{% endfor %}
+{% endblock %}

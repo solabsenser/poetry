@@ -136,7 +136,7 @@ img { max-width: 100%; }
   max-width: var(--col); margin: 0 auto; height: var(--bar-h);
   display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;
 }
-.tabbar-inner.guest { grid-template-columns: repeat(2, 1fr); }
+.tabbar-inner.guest { grid-template-columns: repeat(3, 1fr); }
 .tab {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem;
   min-height: 3.25rem; font-size: .72rem; font-weight: 500; color: var(--muted); text-decoration: none;
