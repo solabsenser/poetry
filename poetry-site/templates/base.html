@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" id="theme-color" content="#f3f2f9">
+<title>{% block title %}{% endblock %}{{ SITE_NAME }}</title>
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("theme");
+    if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = t;
+  } catch (e) {}
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+{% from "_macros.html" import icon, avatar %}
+{% set ep = request.endpoint %}
+<body data-auth="{{ 1 if g.user else '' }}" data-csrf="{{ csrf_token() }}">
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="{{ url_for('index') }}">{{ SITE_NAME }}</a>
+    <div class="top-actions">
+      <button type="button" class="icon-btn" id="theme-toggle" aria-label="Переключить тёмную и светлую тему">{{ icon('moon') }}{{ icon('sun') }}</button>
+      {% if g.user %}
+      <div class="menu-wrap">
+        <button type="button" class="avatar-btn" id="menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu" aria-label="Меню профиля: {{ g.user.username }}">{{ avatar(g.user.username, g.user.id, g.user.av, 40) }}</button>
+        <div class="menu" id="user-menu" role="menu" hidden>
+          <a class="menu-head" role="menuitem" href="{{ url_for('user', username=g.user.username) }}">
+            {{ avatar(g.user.username, g.user.id, g.user.av, 44) }}
+            <span><b>{{ g.user.username }}</b><small>Открыть профиль</small></span>
+          </a>
+          <a class="menu-item" role="menuitem" href="{{ url_for('settings') }}">{{ icon('edit') }}Редактировать профиль</a>
+          <form method="post" action="{{ url_for('logout') }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button class="menu-item" role="menuitem">{{ icon('logout') }}Выйти</button>
+          </form>
+        </div>
+      </div>
+      {% else %}
+      <a class="btn btn-sm" href="{{ url_for('login') }}">Войти</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<div class="app">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <p class="notice{{ ' error' if category == 'error' }}" role="status">{{ message }}</p>
+    {% endfor %}
+  {% endwith %}
+  <main>{% block content %}{% endblock %}</main>
+</div>
+
+<nav class="tabbar" aria-label="Основная навигация">
+  <div class="tabbar-inner{{ ' guest' if not g.user }}">
+    <a class="tab" href="{{ url_for('index') }}"{% if ep == 'index' %} aria-current="page"{% endif %}>{{ icon('home') }}<span>Главная</span></a>
+    {% if g.user %}
+    <a class="tab" href="{{ url_for('following') }}"{% if ep == 'following' %} aria-current="page"{% endif %}>{{ icon('users') }}<span>Подписки</span></a>
+    <a class="tab tab-fab" href="{{ url_for('new_poem') }}"{% if ep == 'new_poem' %} aria-current="page"{% endif %}><span class="fab">{{ icon('plus') }}</span><span>Написать</span></a>
+    <a class="tab" href="{{ url_for('notifications') }}"{% if ep == 'notifications' %} aria-current="page"{% endif %}><span class="tab-icon">{{ icon('bell') }}<i class="badge" id="notif-badge" hidden></i></span><span>Новое</span></a>
+    <a class="tab tab-me" href="{{ url_for('user', username=g.user.username) }}"{% if ep == 'user' and request.view_args.username|lower == g.user.username|lower %} aria-current="page"{% endif %}>{{ avatar(g.user.username, g.user.id, g.user.av, 26) }}<span>Профиль</span></a>
+    {% else %}
+    <a class="tab" href="{{ url_for('login') }}"{% if ep in ('login', 'register') %} aria-current="page"{% endif %}>{{ icon('user') }}<span>Войти</span></a>
+    {% endif %}
+  </div>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

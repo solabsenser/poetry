@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Вход — {% endblock %}
+{% block content %}
+<section class="auth">
+  <h1 class="page-title">С возвращением</h1>
+  <p class="page-sub">Войди, чтобы публиковать стихи и общаться с авторами.</p>
+  <form method="post" class="form">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    <label>Имя <input name="username" value="{{ username }}" required autofocus autocomplete="username"></label>
+    <label>Пароль <input name="password" type="password" required autocomplete="current-password"></label>
+    <button class="btn btn-block">Войти</button>
+    <p class="hint">Нет аккаунта? <a href="{{ url_for('register') }}">Зарегистрироваться</a></p>
+  </form>
+</section>
+{% endblock %}
