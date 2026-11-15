@@ -296,8 +296,7 @@ def health():
 def index():
     page = page_number()
     poems, has_next = load_poems(page=page)
-    tags = [] if request.args.get("partial") else cached("tags", 600, trending_tags)[:10]
-    return feed("home.html", poems=poems, page=page, has_next=has_next, tags=tags,
+    return feed("home.html", poems=poems, page=page, has_next=has_next,
                 empty=None, empty_cta=None)
 
 
@@ -314,6 +313,9 @@ def following():
                 empty_cta={"url": url_for("explore"), "label": "Найти авторов"})
 
 
+HAS_REACTION = "EXISTS (SELECT 1 FROM reactions r WHERE r.poem_id = p.id)"
+
+
 @app.route("/explore")
 def explore():
     tags = cached("tags", 600, trending_tags)
@@ -324,8 +326,27 @@ def explore():
                                     (g.user["id"],))}
         authors = [a for a in authors if a["id"] != g.user["id"]]
     authors = [dict(a, followed=a["id"] in followed) for a in authors[:6]]
-    popular, _ = load_poems(per_page=5, order=POPULAR_ORDER)
-    return render_template("explore.html", tags=tags, authors=authors, poems=popular)
+
+    # лучшее за неделю; если за неделю ничего нет, берём лучшее за всё время
+    period = "week"
+    top, _ = load_poems(
+        f"WHERE p.created_at >= datetime('now', '-7 days') AND {HAS_REACTION}",
+        per_page=6, order=POPULAR_ORDER)
+    if not top:
+        period = "all"
+        top, _ = load_poems(f"WHERE {HAS_REACTION}", per_page=6, order=POPULAR_ORDER)
+    featured, popular = (top[0], top[1:]) if top else (None, [])
+    return render_template("explore.html", tags=tags, authors=authors,
+                           featured=featured, popular=popular, period=period)
+
+
+@app.route("/random")
+def random_poem():
+    row = q1("SELECT id FROM poems ORDER BY RANDOM() LIMIT 1")
+    if not row:
+        flash("Стихов пока нет. Будь первым!")
+        return redirect(url_for("index"))
+    return redirect(url_for("poem", poem_id=row[0]))
 
 
 @app.route("/tag/<tag>")

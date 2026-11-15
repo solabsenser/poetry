@@ -2,11 +2,6 @@
 {% from "_macros.html" import icon, avatar %}
 {% block content %}
 {% include "_search.html" %}
-{% if tags %}
-<div class="chips" aria-label="Популярные теги">
-  {% for t, n in tags %}<a class="chip" href="{{ url_for('tag', tag=t) }}">#{{ t }}</a>{% endfor %}
-</div>
-{% endif %}
 {% if g.user %}
 <a class="composer" href="{{ url_for('new_poem') }}">
   {{ avatar(g.user.username, g.user.id, g.user.av, 44) }}

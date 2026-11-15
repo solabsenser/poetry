@@ -356,3 +356,14 @@ img { max-width: 100%; }
 
 .tab-me .avatar { margin: .1rem 0; }
 .tab-me[aria-current="page"] .avatar { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+
+/* ---------- обзор: «случайное стихотворение» ---------- */
+.surprise {
+  display: flex; align-items: center; gap: .9rem; margin-top: 1rem; padding: .9rem 1.1rem;
+  color: var(--ink); text-decoration: none; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow);
+}
+.surprise:hover { border-color: var(--accent); }
+.surprise-mark { display: grid; place-items: center; width: 2.8rem; height: 2.8rem; font-size: 1.5rem; background: var(--accent-soft); border-radius: 14px; }
+.surprise span:last-child { display: grid; line-height: 1.3; }
+.surprise small { color: var(--muted); }

@@ -3,7 +3,17 @@
 {% block title %}Обзор — {% endblock %}
 {% block content %}
 <h1 class="page-title">Обзор</h1>
-{% include "_search.html" %}
+<p class="page-sub">Найди, что почитать: лучшее у читателей, темы и новые авторы.</p>
+
+<a class="surprise" href="{{ url_for('random_poem') }}">
+  <span class="surprise-mark" aria-hidden="true">🎲</span>
+  <span><b>Случайное стихотворение</b><small>Открой что-нибудь неожиданное</small></span>
+</a>
+
+{% if featured %}
+<h2 class="section-title">{{ 'Выбор недели' if period == 'week' else 'Любимое читателей' }}</h2>
+{{ card(featured) }}
+{% endif %}
 
 {% if tags %}
 <h2 class="section-title">Темы</h2>
@@ -27,9 +37,12 @@
 </div>
 {% endif %}
 
-<h2 class="section-title">Популярное</h2>
-{% for p in poems %}{{ card(p) }}
-{% else %}
-<div class="empty-state"><div class="empty-mark" aria-hidden="true">🌱</div><p>Здесь появятся самые любимые стихи, как только люди начнут ставить реакции.</p></div>
-{% endfor %}
+{% if popular %}
+<h2 class="section-title">{{ 'Ещё популярное за неделю' if period == 'week' else 'Ещё популярное' }}</h2>
+{% for p in popular %}{{ card(p) }}{% endfor %}
+{% endif %}
+
+{% if not featured %}
+<div class="empty-state"><div class="empty-mark" aria-hidden="true">🌱</div><p>Здесь появятся любимые стихи, как только люди начнут ставить реакции. Поставь первую.</p><a class="btn" href="{{ url_for('index') }}">К ленте</a></div>
+{% endif %}
 {% endblock %}
