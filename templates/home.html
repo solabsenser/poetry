@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, avatar %}
+{% block content %}
+{% include "_search.html" %}
+{% if tags %}
+<div class="chips" aria-label="Популярные теги">
+  {% for t, n in tags %}<a class="chip" href="{{ url_for('tag', tag=t) }}">#{{ t }}</a>{% endfor %}
+</div>
+{% endif %}
+{% if g.user %}
+<a class="composer" href="{{ url_for('new_poem') }}">
+  {{ avatar(g.user.username, g.user.id, g.user.av, 44) }}
+  <span class="composer-text">О чём сегодня твоё стихотворение?</span>
+  <span class="composer-btn">{{ icon('edit') }}</span>
+</a>
+{% else %}
+<section class="welcome">
+  <h1>Стихи, которые хочется читать вслух</h1>
+  <p>Публикуй свои строки, собирай реакции и находи авторов, которые пишут о том же, о чём думаешь ты.</p>
+  <div class="welcome-actions">
+    <a class="btn" href="{{ url_for('register') }}">Присоединиться</a>
+    <a class="btn btn-quiet" href="{{ url_for('login') }}">Войти</a>
+  </div>
+</section>
+{% endif %}
+<div id="feed">{% include "_feed_items.html" %}</div>
+{% endblock %}

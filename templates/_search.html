@@ -1,0 +1,5 @@
+{% from "_macros.html" import icon %}
+<form class="search" action="{{ url_for('search') }}" method="get" role="search">
+  {{ icon('search') }}
+  <input type="search" name="q" value="{{ request.args.get('q', '') if request.endpoint == 'search' else '' }}" placeholder="Стихи, авторы, #теги" aria-label="Поиск" maxlength="100">
+</form>

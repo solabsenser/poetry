@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} — {% endblock %}
+{% block content %}
+<h1 class="page-title">{{ heading }}</h1>
+{% if sub %}<p class="page-sub">{{ sub }}</p>{% endif %}
+{% if show_search %}{% include "_search.html" %}{% endif %}
+<div id="feed">{% include "_feed_items.html" %}</div>
+{% endblock %}
