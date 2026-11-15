@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card, avatar, icon %}
+{% block title %}{{ p.title }} — {% endblock %}
+{% block content %}
+{{ card(p, full=True) }}
+{% if g.user and g.user.id == p.user_id %}
+<div class="owner-actions">
+  <a class="btn btn-quiet btn-sm" href="{{ url_for('edit_poem', poem_id=p.id) }}">{{ icon('edit') }}Редактировать</a>
+  <form method="post" action="{{ url_for('delete_poem', poem_id=p.id) }}" onsubmit="return confirm('Удалить это стихотворение вместе с комментариями?')">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="btn btn-danger btn-sm">Удалить</button>
+  </form>
+</div>
+{% endif %}
+
+<section id="comments" class="comments">
+  <h2 class="section-title">Комментарии{% if comments %} <small>{{ comments|length }}</small>{% endif %}</h2>
+  {% for c in comments %}
+  <div class="comment">
+    <a href="{{ url_for('user', username=c.author) }}">{{ avatar(c.author, c.user_id, c.av, 36) }}</a>
+    <div class="comment-main">
+      <p class="comment-meta"><a href="{{ url_for('user', username=c.author) }}"><b>{{ c.author }}</b></a> <time>{{ c.date }}</time></p>
+      <p class="comment-body">{{ c.body }}</p>
+      {% if g.user and (g.user.id == c.user_id or g.user.id == p.user_id) %}
+      <form method="post" action="{{ url_for('delete_comment', comment_id=c.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="linklike danger small">Удалить</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <p class="muted">Комментариев пока нет. Напиши первый.</p>
+  {% endfor %}
+
+  {% if g.user %}
+  <form method="post" action="{{ url_for('add_comment', poem_id=p.id) }}" class="form comment-form">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Твой комментарий <textarea name="body" maxlength="1000" required rows="3"></textarea></label>
+    <button class="btn">Отправить</button>
+  </form>
+  {% else %}
+  <p class="muted"><a href="{{ url_for('login') }}">Войди</a> или <a href="{{ url_for('register') }}">зарегистрируйся</a>, чтобы комментировать.</p>
+  {% endif %}
+</section>
+{% endblock %}

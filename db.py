@@ -150,6 +150,12 @@ SCHEMA = [
         is_read INTEGER NOT NULL DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )""",
+    """CREATE TABLE IF NOT EXISTS bookmarks (
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        poem_id INTEGER NOT NULL REFERENCES poems(id),
+        PRIMARY KEY (user_id, poem_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_bookmarks_poem ON bookmarks(poem_id)",
     "CREATE INDEX IF NOT EXISTS idx_poems_user ON poems(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_reactions_poem ON reactions(poem_id)",
     "CREATE INDEX IF NOT EXISTS idx_tags_tag ON poem_tags(tag)",
@@ -173,6 +179,10 @@ def init_db():
     alters = []
     if "bio" not in ucols:
         alters.append("ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''")
+    if "avatar" not in ucols:
+        alters.append("ALTER TABLE users ADD COLUMN avatar TEXT")
+    if "avatar_v" not in ucols:
+        alters.append("ALTER TABLE users ADD COLUMN avatar_v INTEGER NOT NULL DEFAULT 0")
     if "updated_at" not in pcols:
         alters.append("ALTER TABLE poems ADD COLUMN updated_at TEXT")
     if "search" not in pcols:

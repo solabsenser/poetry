@@ -1,3 +1,4 @@
+import base64
 import os
 import re
 import secrets
@@ -6,15 +7,15 @@ from collections import defaultdict, deque
 from datetime import timedelta
 from functools import wraps
 
-from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
-                   request, session, url_for)
+from flask import (Flask, Response, abort, flash, g, jsonify, redirect,
+                   render_template, request, session, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import get_conn, init_db
 
-SITE_NAME = "poetrysite"  # поменяй на своё название
+SITE_NAME = "Строфа"  # поменяй на своё название
 REACTIONS = {"heart": "❤️", "fire": "🔥", "tear": "😢", "spark": "✨"}
-PER_PAGE = 15
+PER_PAGE = 12
 PREVIEW_LINES = 12
 MAX_TAGS = 5
 USERNAME_RE = re.compile(r"^\w{3,30}$")
@@ -26,7 +27,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=bool(os.environ.get("RENDER")),  # на Render true, локально false
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
-    MAX_CONTENT_LENGTH=64 * 1024,
+    MAX_CONTENT_LENGTH=256 * 1024,
 )
 
 try:
@@ -63,6 +64,21 @@ def client_ip():
     return ip or request.remote_addr or "?"
 
 
+# ---------- небольшой кэш для «общих» данных (теги, авторы) ----------
+
+_cache = {}
+
+
+def cached(key, ttl, fn):
+    now = time.time()
+    entry = _cache.get(key)
+    if entry and entry[0] > now:
+        return entry[1]
+    value = fn()
+    _cache[key] = (now + ttl, value)
+    return value
+
+
 # ---------- вспомогательное ----------
 
 def csrf_token():
@@ -72,14 +88,23 @@ def csrf_token():
 
 
 def page_url(n):
-    """Ссылка на другую страницу списка с сохранением ?q= и ?feed=."""
-    args = {k: v for k, v in request.args.items() if k in ("q", "feed")}
+    """Ссылка на другую страницу списка с сохранением ?q=."""
+    args = {k: v for k, v in request.args.items() if k == "q"}
     args["page"] = n
     return url_for(request.endpoint, **(request.view_args or {}), **args)
 
 
+def avatar_hue(name):
+    return sum(ord(c) for c in name) * 37 % 360
+
+
+def avatar_url(uid, v):
+    return url_for("avatar_img", uid=uid, v=v)
+
+
 app.jinja_env.globals.update(
-    SITE_NAME=SITE_NAME, REACTIONS=REACTIONS, csrf_token=csrf_token, page_url=page_url
+    SITE_NAME=SITE_NAME, REACTIONS=REACTIONS, csrf_token=csrf_token, page_url=page_url,
+    avatar_hue=avatar_hue, avatar_url=avatar_url,
 )
 
 
@@ -98,10 +123,13 @@ def q1(sql, params=()):
     return rows[0] if rows else None
 
 
+STATELESS = ("health", "static", "avatar_img")
+
+
 @app.before_request
 def before():
     g.user = None
-    if request.endpoint in ("health", "static"):
+    if request.endpoint in STATELESS:  # без cookie, чтобы картинки хорошо кэшировались
         return
     if request.method == "POST":
         sent = request.form.get("csrf") or request.headers.get("X-CSRF") or ""
@@ -109,7 +137,8 @@ def before():
         if not real or not secrets.compare_digest(sent.encode(), real.encode()):
             abort(400)
     if session.get("uid"):
-        g.user = {"id": session["uid"], "username": session["username"]}
+        g.user = {"id": session["uid"], "username": session["username"],
+                  "av": session.get("av", 0)}
 
 
 def login_required(view):
@@ -121,11 +150,19 @@ def login_required(view):
     return wrapper
 
 
-def login_user(uid, username):
+def login_user(uid, username, av=0):
     session.clear()
     session.permanent = True
     session["uid"] = uid
     session["username"] = username
+    session["av"] = av
+
+
+def safe_back(default):
+    back = request.form.get("back", "")
+    if back.startswith("/") and not back.startswith("//") and "\\" not in back:
+        return back
+    return default
 
 
 def parse_tags(raw):
@@ -171,22 +208,24 @@ def notify_stmt(user_id, kind, poem_id=None, detail=""):
     )
 
 
-def load_poems(where="", params=(), page=1, per_page=PER_PAGE):
-    """Возвращает (список стихов с реакциями/тегами/комментариями, есть_ли_следующая_страница)."""
+def load_poems(where="", params=(), page=1, per_page=PER_PAGE, order="p.id DESC"):
+    """Возвращает (список стихов, есть_ли_следующая_страница).
+    `where` и `order` задаются только в коде, пользовательский ввод идёт через params."""
     rows = q(
-        f"""SELECT p.id, p.title, p.body, p.created_at, u.username, p.user_id, p.updated_at
+        f"""SELECT p.id, p.title, p.body, p.created_at, u.username, p.user_id,
+                   p.updated_at, u.avatar_v
             FROM poems p JOIN users u ON u.id = p.user_id
             {where}
-            ORDER BY p.id DESC LIMIT ? OFFSET ?""",
+            ORDER BY {order} LIMIT ? OFFSET ?""",
         (*params, per_page + 1, (page - 1) * per_page),
     )
     has_next = len(rows) > per_page
     poems = {}
-    for pid, title, body, created, author, uid, updated in rows[:per_page]:
+    for pid, title, body, created, author, uid, updated, av in rows[:per_page]:
         lines = body.split("\n")
         poems[pid] = {
             "id": pid, "title": title, "body": body, "author": author, "user_id": uid,
-            "date": (created or "")[:10], "edited": bool(updated),
+            "av": av or 0, "date": (created or "")[:10], "edited": bool(updated),
             "preview": "\n".join(lines[:PREVIEW_LINES]),
             "truncated": len(lines) > PREVIEW_LINES,
             "counts": {k: 0 for k in REACTIONS}, "mine": None,
@@ -223,7 +262,19 @@ def page_number():
     return max(1, request.args.get("page", 1, type=int))
 
 
-# ---------- страницы: ленты ----------
+def feed(template, **ctx):
+    """Полная страница или только карточки (для подгрузки при прокрутке)."""
+    if request.args.get("partial"):
+        return render_template("_feed_items.html", **ctx)
+    return render_template(template, **ctx)
+
+
+def trending_tags():
+    return [(t, n) for t, n in q(
+        "SELECT tag, COUNT(*) AS n FROM poem_tags GROUP BY tag ORDER BY n DESC, tag LIMIT 14")]
+
+
+# ---------- ленты ----------
 
 @app.route("/health")
 def health():
@@ -232,19 +283,24 @@ def health():
 
 @app.route("/")
 def index():
-    feed = request.args.get("feed", "all")
     page = page_number()
-    if feed == "following" and g.user:
-        poems, has_next = load_poems(
-            "WHERE p.user_id IN (SELECT followed_id FROM follows WHERE follower_id = ?)",
-            (g.user["id"],), page)
-        empty = "Здесь появятся стихи авторов, на которых ты подпишешься."
-    else:
-        feed = "all"
-        poems, has_next = load_poems(page=page)
-        empty = None
-    return render_template("index.html", poems=poems, page=page, has_next=has_next,
-                           tabs=bool(g.user), feed=feed, heading=None, empty=empty)
+    poems, has_next = load_poems(page=page)
+    tags = [] if request.args.get("partial") else cached("tags", 600, trending_tags)[:10]
+    return feed("home.html", poems=poems, page=page, has_next=has_next, tags=tags,
+                empty=None, empty_cta=None)
+
+
+@app.route("/following")
+@login_required
+def following():
+    page = page_number()
+    poems, has_next = load_poems(
+        "WHERE p.user_id IN (SELECT followed_id FROM follows WHERE follower_id = ?)",
+        (g.user["id"],), page)
+    return feed("feed_page.html", poems=poems, page=page, has_next=has_next,
+                heading="Подписки", sub="Стихи авторов, которых ты читаешь.",
+                empty="Тут пока пусто. Подпишись на авторов, и их стихи появятся здесь.",
+                empty_cta={"url": url_for("index"), "label": "Открыть общую ленту"})
 
 
 @app.route("/tag/<tag>")
@@ -255,9 +311,9 @@ def tag(tag):
     page = page_number()
     poems, has_next = load_poems(
         "WHERE p.id IN (SELECT poem_id FROM poem_tags WHERE tag = ?)", (tags[0],), page)
-    return render_template("index.html", poems=poems, page=page, has_next=has_next,
-                           tabs=False, feed="all", heading="#" + tags[0],
-                           empty="Стихов с этим тегом пока нет.")
+    return feed("feed_page.html", poems=poems, page=page, has_next=has_next,
+                heading="#" + tags[0], sub=None, empty="Стихов с этим тегом пока нет.",
+                empty_cta=None)
 
 
 @app.route("/search")
@@ -275,11 +331,11 @@ def search():
         params = tuple("%" + w.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
                        for w in words)
         poems, has_next = load_poems(where, params, page)
-    return render_template("index.html", poems=poems, page=page, has_next=has_next,
-                           tabs=False, feed="all",
-                           heading=f"Поиск: {text}" if text else "Поиск",
-                           empty="Ничего не нашлось. Попробуй другое слово или тег." if text
-                           else "Введи слово, имя автора или #тег.")
+    return feed("feed_page.html", poems=poems, page=page, has_next=has_next,
+                heading="Поиск", sub=None, show_search=True,
+                empty="Ничего не нашлось. Попробуй другое слово или тег." if text
+                else "Введи слово, имя автора или #тег.",
+                empty_cta=None)
 
 
 # ---------- стихотворения ----------
@@ -290,11 +346,12 @@ def poem(poem_id):
     if not poems:
         abort(404)
     comments = [
-        {"id": r[0], "body": r[1], "date": (r[2] or "")[:10], "author": r[3], "user_id": r[4]}
+        {"id": r[0], "body": r[1], "date": (r[2] or "")[:10], "author": r[3],
+         "user_id": r[4], "av": r[5] or 0}
         for r in q(
-            "SELECT c.id, c.body, c.created_at, u.username, c.user_id FROM comments c "
-            "JOIN users u ON u.id = c.user_id WHERE c.poem_id = ? ORDER BY c.id LIMIT 300",
-            (poem_id,))
+            "SELECT c.id, c.body, c.created_at, u.username, c.user_id, u.avatar_v "
+            "FROM comments c JOIN users u ON u.id = c.user_id "
+            "WHERE c.poem_id = ? ORDER BY c.id LIMIT 300", (poem_id,))
     ]
     return render_template("poem.html", p=poems[0], comments=comments)
 
@@ -367,6 +424,7 @@ def delete_poem(poem_id):
         ("DELETE FROM reactions WHERE poem_id = ?", (poem_id,)),
         ("DELETE FROM comments WHERE poem_id = ?", (poem_id,)),
         ("DELETE FROM poem_tags WHERE poem_id = ?", (poem_id,)),
+        ("DELETE FROM bookmarks WHERE poem_id = ?", (poem_id,)),
         ("DELETE FROM notifications WHERE poem_id = ?", (poem_id,)),
         ("DELETE FROM poems WHERE id = ?", (poem_id,)),
     ])
@@ -454,33 +512,38 @@ def delete_comment(comment_id):
     return redirect(url_for("poem", poem_id=row[1]) + "#comments")
 
 
-# ---------- профили и подписки ----------
+# ---------- профили, подписки, аватарки ----------
 
 @app.route("/u/<username>")
 def user(username):
-    row = q1("SELECT id, username, bio FROM users WHERE username = ? COLLATE NOCASE", (username,))
+    row = q1("SELECT id, username, bio, avatar_v FROM users WHERE username = ? COLLATE NOCASE",
+             (username,))
     if not row:
         abort(404)
-    uid = row[0]
-    stmts = [
-        ("SELECT COUNT(*) FROM poems WHERE user_id = ?", (uid,)),
-        ("SELECT COUNT(*) FROM follows WHERE followed_id = ?", (uid,)),
-        ("SELECT COUNT(*) FROM follows WHERE follower_id = ?", (uid,)),
-    ]
-    if g.user and g.user["id"] != uid:
-        stmts.append(("SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
-                      (g.user["id"], uid)))
-    res = db().run_many(stmts)
-    profile = {
-        "username": row[1], "bio": row[2] or "",
-        "poems": res[0].fetchone()[0], "followers": res[1].fetchone()[0],
-        "following": res[2].fetchone()[0],
-        "is_following": len(res) > 3 and bool(res[3].fetchall()),
-        "is_me": bool(g.user and g.user["id"] == uid),
-    }
-    page = page_number()
+    uid, page = row[0], page_number()
+    profile = None
+    if not request.args.get("partial"):
+        stmts = [
+            ("SELECT COUNT(*) FROM poems WHERE user_id = ?", (uid,)),
+            ("SELECT COUNT(*) FROM follows WHERE followed_id = ?", (uid,)),
+            ("SELECT COUNT(*) FROM follows WHERE follower_id = ?", (uid,)),
+            ("SELECT COUNT(*) FROM reactions r JOIN poems p ON p.id = r.poem_id "
+             "WHERE p.user_id = ?", (uid,)),
+        ]
+        if g.user and g.user["id"] != uid:
+            stmts.append(("SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
+                          (g.user["id"], uid)))
+        res = db().run_many(stmts)
+        profile = {
+            "id": uid, "username": row[1], "bio": row[2] or "", "av": row[3] or 0,
+            "poems": res[0].fetchone()[0], "followers": res[1].fetchone()[0],
+            "following": res[2].fetchone()[0], "likes": res[3].fetchone()[0],
+            "is_following": len(res) > 4 and bool(res[4].fetchall()),
+            "is_me": bool(g.user and g.user["id"] == uid),
+        }
     poems, has_next = load_poems("WHERE p.user_id = ?", (uid,), page)
-    return render_template("user.html", profile=profile, poems=poems, page=page, has_next=has_next)
+    return feed("user.html", profile=profile, poems=poems, page=page, has_next=has_next,
+                empty="Пока ни одного стихотворения.", empty_cta=None)
 
 
 @app.post("/u/<username>/follow")
@@ -508,7 +571,7 @@ def follow(username):
             if n:
                 stmts.append(n)
             db().run_many(stmts)
-    return redirect(url_for("user", username=row[1]))
+    return redirect(safe_back(url_for("user", username=row[1])))
 
 
 @app.route("/settings", methods=["GET", "POST"])
@@ -528,28 +591,43 @@ def settings():
     return render_template("settings.html", error=None, bio=(row[0] if row else "") or "")
 
 
+@app.route("/avatar/<int:uid>/<int:v>.jpg")
+def avatar_img(uid, v):
+    row = q1("SELECT avatar FROM users WHERE id = ?", (uid,))
+    if not row or not row[0]:
+        abort(404)
+    resp = Response(base64.b64decode(row[0]), mimetype="image/jpeg")
+    # адрес содержит версию, поэтому браузер может хранить картинку «вечно»
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
+
 # ---------- уведомления ----------
 
 @app.route("/notifications")
 @login_required
 def notifications():
     rows, _ = db().run_many([
-        ("SELECT n.kind, n.detail, n.is_read, n.created_at, a.username, p.id, p.title "
-         "FROM notifications n JOIN users a ON a.id = n.actor_id "
+        ("SELECT n.kind, n.detail, n.is_read, n.created_at, a.username, a.id, a.avatar_v, "
+         "p.id, p.title FROM notifications n JOIN users a ON a.id = n.actor_id "
          "LEFT JOIN poems p ON p.id = n.poem_id "
          "WHERE n.user_id = ? ORDER BY n.id DESC LIMIT 50", (g.user["id"],)),
         ("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0", (g.user["id"],)),
     ])
     items = []
-    for kind, detail, is_read, created, actor, pid, title in rows.fetchall():
+    for kind, detail, is_read, created, actor, actor_id, av, pid, title in rows.fetchall():
         if kind == "reaction":
-            text = f"{actor}: {REACTIONS.get(detail, '')} к стихотворению «{title}»"
+            text = f"поставил(а) {REACTIONS.get(detail, '')} к стихотворению «{title}»"
         elif kind == "comment":
-            text = f"{actor} прокомментировал «{title}»: {detail}"
+            text = f"прокомментировал(а) «{title}»: {detail}"
         else:
-            text = f"{actor} теперь читает тебя"
-        link = url_for("poem", poem_id=pid) if pid else url_for("user", username=actor)
-        items.append({"text": text, "link": link, "unread": not is_read, "date": (created or "")[:10]})
+            text = "теперь читает тебя"
+        items.append({
+            "actor": actor, "actor_id": actor_id, "av": av or 0, "text": text,
+            "link": url_for("poem", poem_id=pid) if pid else url_for("user", username=actor),
+            "unread": not is_read, "date": (created or "")[:10],
+        })
     return render_template("notifications.html", items=items)
 
 
@@ -612,10 +690,10 @@ def login():
         if too_many(key, 10, 900):
             error = "Слишком много неудачных попыток. Подожди 15 минут."
         else:
-            row = q1("SELECT id, username, password_hash FROM users "
+            row = q1("SELECT id, username, password_hash, avatar_v FROM users "
                      "WHERE username = ? COLLATE NOCASE", (username,))
             if row and check_password_hash(row[2], password):
-                login_user(row[0], row[1])
+                login_user(row[0], row[1], row[3] or 0)
                 return redirect(url_for("index"))
             hit(key)
             error = "Неверное имя или пароль."
@@ -643,6 +721,11 @@ def forbidden(_):
 @app.errorhandler(400)
 def bad_request(_):
     return render_template("error.html", text="Запрос не прошёл проверку. Обнови страницу и попробуй снова."), 400
+
+
+@app.errorhandler(413)
+def too_large(_):
+    return render_template("error.html", text="Файл слишком большой (максимум 3 МБ)."), 413
 
 
 @app.errorhandler(429)
