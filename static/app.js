@@ -159,6 +159,56 @@
   }
   watchMore();
 
+  // ---------- загрузка аватарки ----------
+  // Фото уменьшается и обрезается до квадрата прямо в браузере, поэтому
+  // даже большое фото с телефона загружается быстро.
+  function toSquareJpeg(file, size) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = size;
+        canvas.getContext("2d").drawImage(
+          img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("blob"))), "image/jpeg", 0.88);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode")); };
+      img.src = url;
+    });
+  }
+  const avatarInput = $("[data-avatar-input]");
+  if (avatarInput) {
+    avatarInput.addEventListener("change", async () => {
+      const file = avatarInput.files[0];
+      if (!file) return;
+      toast("Загружаю фото…");
+      try {
+        let payload;
+        try {
+          payload = await toSquareJpeg(file, 512);
+        } catch (err) {
+          if (file.size > 3 * 1024 * 1024) throw new Error("Файл слишком большой (максимум 3 МБ).");
+          payload = file; // браузер не смог прочитать, пусть попробует сервер
+        }
+        const fd = new FormData();
+        fd.append("csrf", csrf);
+        fd.append("avatar", payload, "avatar.jpg");
+        const r = await fetch("/profile/avatar", {
+          method: "POST", headers: { "X-Requested-With": "fetch" }, body: fd,
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || "Не получилось загрузить фото.");
+        location.reload();
+      } catch (err) {
+        toast(err.message && err.message.length > 3 ? err.message : "Не получилось загрузить фото.");
+        avatarInput.value = "";
+      }
+    });
+  }
+
   // ---------- счётчик символов в формах ----------
   document.querySelectorAll("textarea[data-count]").forEach((area) => {
     const out = document.getElementById(area.dataset.count);

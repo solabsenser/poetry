@@ -1,4 +1,5 @@
 import base64
+import io
 import os
 import re
 import secrets
@@ -9,6 +10,7 @@ from functools import wraps
 
 from flask import (Flask, Response, abort, flash, g, jsonify, redirect,
                    render_template, request, session, url_for)
+from PIL import Image, ImageOps
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import get_conn, init_db
@@ -19,7 +21,11 @@ PER_PAGE = 12
 PREVIEW_LINES = 12
 MAX_TAGS = 5
 USERNAME_RE = re.compile(r"^\w{3,30}$")
+AVATAR_SIZE = 256
+AVATAR_FORMATS = {"JPEG", "PNG", "WEBP", "GIF", "MPO"}
 POPULAR_ORDER = "(SELECT COUNT(*) FROM reactions r WHERE r.poem_id = p.id) DESC, p.id DESC"
+
+Image.MAX_IMAGE_PIXELS = 40_000_000  # защита от «бомб» в картинках
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
@@ -28,7 +34,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=bool(os.environ.get("RENDER")),  # на Render true, локально false
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
-    MAX_CONTENT_LENGTH=256 * 1024,
+    MAX_CONTENT_LENGTH=3 * 1024 * 1024,  # нужно для загрузки фото
 )
 
 try:
@@ -567,6 +573,8 @@ def user(username):
     if not row:
         abort(404)
     uid, page = row[0], page_number()
+    if g.user and g.user["id"] == uid and (row[3] or 0) != session.get("av", 0):
+        session["av"] = row[3] or 0
     profile = None
     if not request.args.get("partial"):
         stmts = [
@@ -675,6 +683,61 @@ def change_password():
                  (generate_password_hash(new), g.user["id"]))
     flash("Пароль изменён.")
     return redirect(url_for("settings"))
+
+
+def make_avatar(raw):
+    """Квадратное JPEG 256x256. Пересохраняем сами, чтобы в базу не попало ничего лишнего."""
+    img = Image.open(io.BytesIO(raw))
+    if img.format not in AVATAR_FORMATS:
+        raise ValueError("unsupported format")
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    img = ImageOps.fit(img, (AVATAR_SIZE, AVATAR_SIZE), Image.LANCZOS)
+    out = io.BytesIO()
+    img.save(out, "JPEG", quality=85, optimize=True)
+    return out.getvalue()
+
+
+@app.post("/profile/avatar")
+@login_required
+def upload_avatar():
+    wants_json = request.headers.get("X-Requested-With") == "fetch"
+
+    def fail(message, status=400):
+        if wants_json:
+            return jsonify(error=message), status
+        flash(message, "error")
+        return redirect(url_for("edit_profile"))
+
+    key = ("avatar", g.user["id"])
+    if too_many(key, 10, 3600):
+        return fail("Слишком много попыток. Попробуй позже.", 429)
+    file = request.files.get("avatar")
+    if not file:
+        return fail("Файл не выбран.")
+    try:
+        data = make_avatar(file.read())
+    except Exception:
+        return fail("Не получилось прочитать картинку. Подойдёт JPG, PNG или WebP.")
+    hit(key)
+    version = int(time.time() * 1000)  # в миллисекундах, чтобы две загрузки подряд не совпали
+    db().execute("UPDATE users SET avatar = ?, avatar_v = ? WHERE id = ?",
+                 (base64.b64encode(data).decode(), version, g.user["id"]))
+    session["av"] = version
+    _cache.pop("authors", None)
+    flash("Фото обновлено.")
+    if wants_json:
+        return jsonify(ok=True)
+    return redirect(url_for("edit_profile"))
+
+
+@app.post("/profile/avatar/remove")
+@login_required
+def remove_avatar():
+    db().execute("UPDATE users SET avatar = NULL, avatar_v = 0 WHERE id = ?", (g.user["id"],))
+    session["av"] = 0
+    _cache.pop("authors", None)
+    flash("Фото удалено, вернулась стандартная аватарка.")
+    return redirect(url_for("edit_profile"))
 
 
 @app.route("/avatar/<int:uid>/<int:v>.jpg")

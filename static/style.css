@@ -377,3 +377,7 @@ img { max-width: 100%; }
 .seg button:hover { color: var(--ink); }
 .seg button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); }
 .settings-link { margin-top: 1rem; }
+
+#avatar-input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 3px; }
+.avatar-edit .avatar { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent); }
+.avatar-edit-actions label.btn { cursor: pointer; }
